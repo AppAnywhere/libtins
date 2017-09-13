@@ -268,6 +268,8 @@ void PacketSender::open_l3_socket(SocketType type) {
             throw socket_open_error(make_error_string());
         }
 
+        setsockopt(sockfd, level, IP_MULTICAST_LOOP, (option_ptr)&on, sizeof(on));
+
         sockets_[type] = static_cast<int>(sockfd);
     }
 }
@@ -348,14 +350,13 @@ PDU* PacketSender::send_recv(PDU& pdu, const NetworkInterface& iface) {
     return pdu.recv_response(*this, iface);
 }
 
-#if !defined(_WIN32) || defined(TINS_HAVE_PACKET_SENDER_PCAP_SENDPACKET)
 void PacketSender::send_l2(PDU& pdu,
                            struct sockaddr* link_addr, 
                            uint32_t len_addr,
                            const NetworkInterface& iface) {
+
     PDU::serialization_type buffer = pdu.serialize();
 
-    #ifdef TINS_HAVE_PACKET_SENDER_PCAP_SENDPACKET
         Internals::unused(len_addr);
         Internals::unused(link_addr);
         open_l2_socket(iface);
@@ -364,23 +365,8 @@ void PacketSender::send_l2(PDU& pdu,
         if (pcap_sendpacket(handle, (u_char*)&buffer[0], buf_size) != 0) {
             throw pcap_error("Failed to send packet: " + string(pcap_geterr(handle)));
         }
-    #else // TINS_HAVE_PACKET_SENDER_PCAP_SENDPACKET
-        int sock = get_ether_socket(iface);
-        if (!buffer.empty()) {
-            #if defined(BSD) || defined(__FreeBSD_kernel__)
-            Internals::unused(len_addr);
-            Internals::unused(link_addr);
-            if (::write(sock, &buffer[0], buffer.size()) == -1) {
-            #else
-            if (::sendto(sock, &buffer[0], buffer.size(), 0, link_addr, len_addr) == -1) {
-            #endif
-                throw socket_write_error(make_error_string());
-            }
-        }
-    #endif // TINS_HAVE_PACKET_SENDER_PCAP_SENDPACKET
 }
 
-#endif // !_WIN32 || TINS_HAVE_PACKET_SENDER_PCAP_SENDPACKET
 
 #ifndef _WIN32
 PDU* PacketSender::recv_l2(PDU& pdu, 
@@ -413,6 +399,7 @@ void PacketSender::send_l3(PDU& pdu,
                            struct sockaddr* link_addr,
                            uint32_t len_addr,
                            SocketType type) {
+
     open_l3_socket(type);
     int sock = sockets_[type];
     PDU::serialization_type buffer = pdu.serialize();

@@ -375,6 +375,13 @@ public:
      * \param type The socket protocol type.
      */
     void send_l3(PDU& pdu, struct sockaddr* link_addr, uint32_t len_addr, SocketType type);
+
+    template<typename T>
+    inline void sendpacket(const T & rs, const Tins::NetworkInterface & ni);
+
+    template<typename T>
+    inline void inject(const T& rhs, const Tins::NetworkInterface & ni);
+
 private:
     static const int INVALID_RAW_SOCKET;
 
@@ -422,6 +429,7 @@ private:
         PcapHandleMap pcap_handles_;
     #endif // TINS_HAVE_PACKET_SENDER_PCAP_SENDPACKET
 };
+
 
 } // Tins
 
