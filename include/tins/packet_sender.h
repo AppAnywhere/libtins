@@ -377,10 +377,30 @@ public:
     void send_l3(PDU& pdu, struct sockaddr* link_addr, uint32_t len_addr, SocketType type);
 
     template<typename T>
-    inline void sendpacket(const T & rs, const Tins::NetworkInterface & ni);
+    inline void sendpacket(const T & pdu, const Tins::NetworkInterface & iface)
+    {
+        PDU::serialization_type buffer = const_cast<T&>(pdu).serialize();
+
+        open_l2_socket(iface);
+        pcap_t* handle = pcap_handles_[iface];
+        const int buf_size = static_cast<int>(buffer.size());
+        if (pcap_sendpacket(handle, (u_char*)&buffer[0], buf_size) != 0) {
+            throw pcap_error("Failed to send packet: " + std::string(pcap_geterr(handle)));
+        }
+    }
 
     template<typename T>
-    inline void inject(const T& rhs, const Tins::NetworkInterface & ni);
+    inline void inject(const T& pdu, const Tins::NetworkInterface & iface)
+    {
+        PDU::serialization_type buffer = const_cast<T&>(pdu).serialize();
+
+        open_l2_socket(iface);
+        pcap_t* handle = pcap_handles_[iface];
+        const int buf_size = static_cast<int>(buffer.size());
+        if (pcap_inject(handle, (u_char*)&buffer[0], buf_size) != 0) {
+            throw pcap_error("Failed to inject packet: " + std::string(pcap_geterr(handle)));
+        }
+    }
 
 private:
     static const int INVALID_RAW_SOCKET;
